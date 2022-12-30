@@ -7,15 +7,15 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.location.Address;
-import android.location.Geocoder;
-import android.location.Location;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.preference.PreferenceManager;
+import android.util.Base64;
 import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -24,20 +24,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.databinding.DataBindingUtil;
 
 import com.android.volley.Cache;
 import com.android.volley.Network;
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
+import com.bumptech.glide.Glide;
 import com.example.myweatherapplication.databinding.ActivityMainBinding;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.ResolvableApiException;
@@ -51,16 +49,14 @@ import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Locale;
+import java.io.ByteArrayOutputStream;
+import java.net.URL;
 
 public class MainActivity extends AppCompatActivity {
     ActivityMainBinding dataBinding;
@@ -76,14 +72,13 @@ public class MainActivity extends AppCompatActivity {
         dataBinding = DataBindingUtil.setContentView(this, R.layout.activity_main);
         textView = dataBinding.cityTitle;
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
-        locationRequest =  new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY,5000).build();
-        sharedPreferences=getSharedPreferences("lastData",MODE_PRIVATE);
-        if(checkConnectivity()) {
+        locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build();
+        sharedPreferences = getSharedPreferences("lastData", MODE_PRIVATE);
+        if (checkConnectivity()) {
             getCurrentLocation();
-        }
-        else {
-            String value = sharedPreferences.getString("city", "Please Connect to internet");
-            textView.setText(value);
+        } else {
+            getDefaultData();
+
         }
     }
 
@@ -92,14 +87,14 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        if (requestCode == 1){
-            if (grantResults[0] == PackageManager.PERMISSION_GRANTED){
+        if (requestCode == 1) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
                 if (isGPSEnabled()) {
 
                     getCurrentLocation();
 
-                }else {
+                } else {
 
                     turnOnGPS();
                 }
@@ -108,6 +103,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     }
+
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
@@ -118,6 +114,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
     private void getCurrentLocation() {
         if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 
@@ -132,13 +129,13 @@ public class MainActivity extends AppCompatActivity {
                                 LocationServices.getFusedLocationProviderClient(MainActivity.this)
                                         .removeLocationUpdates(this);
 
-                                if (locationResult != null && locationResult.getLocations().size() >0){
+                                if (locationResult != null && locationResult.getLocations().size() > 0) {
 
                                     int index = locationResult.getLocations().size() - 1;
                                     double latitude = locationResult.getLocations().get(index).getLatitude();
                                     double longitude = locationResult.getLocations().get(index).getLongitude();
 //IMP****
-                                    loadData(latitude+"",longitude+"");
+                                    loadData(latitude + "", longitude + "");
                                 }
                             }
                         }, Looper.getMainLooper());
@@ -154,7 +151,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void turnOnGPS() {
-
 
 
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
@@ -205,46 +201,93 @@ public class MainActivity extends AppCompatActivity {
         return isEnabled;
     }
 
-    private void loadData(String Latitude,String Longitude) {
+    private void loadData(String Latitude, String Longitude) {
         Cache cache = new DiskBasedCache(getCacheDir(), 1024 * 1024);
         Network network = new BasicNetwork(new HurlStack());
 //      RequestQueue requestQueue;
 //      requestQueue = Volley.newRequestQueue(this);
 //      requestQueue.start();
 
-        String API_KEY="2cab7d4d158694baeef5060316992318";
-        String url = "https://api.openweathermap.org/data/2.5/weather?lat="+Latitude+"&lon="+Longitude+"&appid="+API_KEY;
+        String API_KEY = "2cab7d4d158694baeef5060316992318";
+        String url = "https://api.openweathermap.org/data/2.5/weather?lat=" + Latitude + "&lon=" + Longitude + "&appid=" + API_KEY;
         JsonObjectRequest
                 jsonObjectRequest
                 = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
             @Override
             public void onResponse(JSONObject response) {
-                try {
-                    String cityName=response.getString("name");
-                    SharedPreferences.Editor editor=sharedPreferences.edit();
-                    editor.putString("city",cityName);
-                    editor.apply();
-                    textView.setText(cityName);
-                } catch (JSONException e) {
-                    Log.v("Tagg",e.getLocalizedMessage());
-                }
+
+                getDetails(response);
+
 
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                Log.v("Error",error.getLocalizedMessage());
+                Log.v("Error", error.getLocalizedMessage());
             }
         });
         MySingleton.getInstance(this).addToRequestQueue(jsonObjectRequest);
     }
-    boolean checkConnectivity(){
+
+    private void getDetails(JSONObject response) {
+        try {
+            String cityName = response.getString("name");
+            JSONArray array = response.getJSONArray("weather");
+            JSONObject obj = array.getJSONObject(0);
+            String imgCode = obj.getString("icon");
+            String description = obj.getString("description");
+            String temp = response.getJSONObject("main").getString("temp");
+
+
+            textView.setText(cityName);
+            dataBinding.weatherDesc.setText(description);
+            dataBinding.weatherTemp.setText(temp);
+            String icon_url = "https://openweathermap.org/img/wn/" + imgCode + "@4x.png";
+            Glide.with(getApplicationContext())
+                    .load(icon_url)
+                    .into(dataBinding.weatherImg);
+            Weather weather = new Weather(cityName, icon_url, temp, description,System.currentTimeMillis());
+            setCacheData(weather);
+
+        } catch (JSONException e) {
+            Log.v("Tagg", e.getLocalizedMessage());
+        }
+    }
+
+    private boolean checkConnectivity() {
         boolean connected = false;
-        ConnectivityManager connectivityManager = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         //we are connected to a network
         connected = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState() == NetworkInfo.State.CONNECTED ||
                 connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).getState() == NetworkInfo.State.CONNECTED;
         return connected;
     }
 
+    private void setCacheData(Weather weather) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("city", weather.city);
+        editor.putString("icon", weather.getImg_code());
+        editor.putString("temp", weather.getTemp());
+        editor.putLong("time",weather.getTime());
+        editor.putString("desc", weather.getDesc());
+        editor.apply();
+
+    }
+
+    private void getDefaultData() {
+        String value = sharedPreferences.getString("city", "Please Connect to internet");
+        String desc=sharedPreferences.getString("desc","null");
+        String temp=sharedPreferences.getString("temp","noTemp");
+        String time=TimeUtils.getTime(sharedPreferences.getLong("time",System.currentTimeMillis()));
+        textView.setText(value);
+        dataBinding.weatherTemp.setText(temp);
+        dataBinding.weatherDesc.setText(desc);
+        dataBinding.weatherTime.setText(time);
+        dataBinding.weatherImg.setImageResource(R.drawable.no_img);
+
+
+
+    }
+
 }
+//todo bonus task

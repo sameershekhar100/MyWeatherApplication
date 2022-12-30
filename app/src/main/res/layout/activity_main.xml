@@ -9,29 +9,86 @@
         tools:context=".MainActivity">
 
         <ImageView
+            android:id="@+id/imageView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/gradient1"
-            android:scaleType="centerCrop"
             android:background="@drawable/night_city"
+            android:scaleType="centerCrop"
+            android:src="@drawable/gradient1"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
 
+        <ImageView
+            android:id="@+id/weather_img"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:contentDescription="No Image"
+            app:layout_constraintBottom_toTopOf="@id/city_title"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.498"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.666"
+            tools:src="@color/black" />
+
         <TextView
             android:id="@+id/city_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="92dp"
+            android:layout_marginTop="176dp"
             android:textColor="#fff"
             android:textSize="38sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.3"
+            app:layout_constraintHorizontal_bias="0.5"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="City Name" />
+
+        <LinearLayout
+            android:id="@+id/linear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/city_title">
+
+            <TextView
+                android:id="@+id/weather_temp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#fff"
+                android:textSize="64sp"
+                android:textStyle="bold"
+                tools:text="10deg" />
+
+            <TextView
+                android:id="@+id/weather_desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textColor="#fff"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                tools:text="10deg" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/weatherTime"
+            android:layout_width="58dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.498"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.553"
+            tools:text="TextView" />
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>
