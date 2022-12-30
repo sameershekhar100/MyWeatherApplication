@@ -31,7 +31,8 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.666"
-            tools:src="@color/black" />
+            android:background="@color/white"
+            android:visibility="invisible"/>
 
         <TextView
             android:id="@+id/city_title"

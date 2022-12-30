@@ -17,6 +17,7 @@ import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.util.Base64;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -57,6 +58,7 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URL;
+import java.text.DecimalFormat;
 
 public class MainActivity extends AppCompatActivity {
     ActivityMainBinding dataBinding;
@@ -236,8 +238,9 @@ public class MainActivity extends AppCompatActivity {
             JSONObject obj = array.getJSONObject(0);
             String imgCode = obj.getString("icon");
             String description = obj.getString("description");
-            String temp = response.getJSONObject("main").getString("temp");
-
+            double temp1 = response.getJSONObject("main").getDouble("temp")-273;
+            DecimalFormat precision = new DecimalFormat("0.00");
+            String temp=precision.format(temp1)+"°C";
 
             textView.setText(cityName);
             dataBinding.weatherDesc.setText(description);
@@ -247,6 +250,7 @@ public class MainActivity extends AppCompatActivity {
                     .load(icon_url)
                     .into(dataBinding.weatherImg);
             Weather weather = new Weather(cityName, icon_url, temp, description,System.currentTimeMillis());
+            dataBinding.weatherImg.setVisibility(View.VISIBLE);
             setCacheData(weather);
 
         } catch (JSONException e) {
@@ -284,6 +288,7 @@ public class MainActivity extends AppCompatActivity {
         dataBinding.weatherDesc.setText(desc);
         dataBinding.weatherTime.setText(time);
         dataBinding.weatherImg.setImageResource(R.drawable.no_img);
+        dataBinding.weatherImg.setVisibility(View.VISIBLE);
 
 
 
@@ -291,3 +296,13 @@ public class MainActivity extends AppCompatActivity {
 
 }
 //todo bonus task
+/*• Below card view show list of following cities with their current weather conditions.
+
+1. New York
+2. Singapore
+3. Mumbai
+4. Delhi
+5. Sydney
+6. Melbourne
+
+*/
