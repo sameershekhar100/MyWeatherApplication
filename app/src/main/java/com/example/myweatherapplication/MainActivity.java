@@ -26,6 +26,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.databinding.DataBindingUtil;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.Cache;
 import com.android.volley.Network;
@@ -59,14 +61,18 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
     ActivityMainBinding dataBinding;
     TextView textView;
     FusedLocationProviderClient fusedLocationProviderClient;
     SharedPreferences sharedPreferences;
-
+    RecyclerView recyclerView;
     private LocationRequest locationRequest;
+    LinearLayoutManager manager=new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, true);
+    String[] citynames={"New York", "Singapore","Mumbai","Delhi","Sydney", "Melbourne"};
+    static ArrayList<Weather> cityWeather=new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,12 +82,142 @@ public class MainActivity extends AppCompatActivity {
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build();
         sharedPreferences = getSharedPreferences("lastData", MODE_PRIVATE);
+        recyclerView=dataBinding.recyclerView;
+        recyclerView.setLayoutManager(manager);
         if (checkConnectivity()) {
+            getCurrentWeatherList();
             getCurrentLocation();
         } else {
+            recyclerView.setVisibility(View.INVISIBLE);
             getDefaultData();
 
         }
+    }
+
+
+    private void loadData(String Latitude, String Longitude) {
+        Cache cache = new DiskBasedCache(getCacheDir(), 1024 * 1024);
+        Network network = new BasicNetwork(new HurlStack());
+//      RequestQueue requestQueue;
+//      requestQueue = Volley.newRequestQueue(this);
+//      requestQueue.start();
+
+        String API_KEY = "2cab7d4d158694baeef5060316992318";
+        String url = "https://api.openweathermap.org/data/2.5/weather?lat=" + Latitude + "&lon=" + Longitude + "&appid=" + API_KEY;
+        JsonObjectRequest
+                jsonObjectRequest
+                = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+
+                Weather weather=getDetails(response);
+                setDetails(weather);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.v("Error", error.getLocalizedMessage());
+            }
+        });
+        MySingleton.getInstance(this).addToRequestQueue(jsonObjectRequest);
+    }
+
+    private Weather getDetails(JSONObject response) {
+        Weather weather = null;
+        try {
+            String cityName = response.getString("name");
+            JSONArray array = response.getJSONArray("weather");
+            JSONObject obj = array.getJSONObject(0);
+            String imgCode = obj.getString("icon");
+            String description = obj.getString("description");
+            double temp1 = response.getJSONObject("main").getDouble("temp")-273;
+            DecimalFormat precision = new DecimalFormat("0.00");
+            String temp=precision.format(temp1)+"°C";
+            String icon_url = "https://openweathermap.org/img/wn/" + imgCode + "@4x.png";
+            weather = new Weather(cityName, icon_url, temp, description,System.currentTimeMillis());
+
+
+        } catch (JSONException e) {
+            Log.v("Tagg", e.getLocalizedMessage());
+        }
+        return weather;
+    }
+    private void setDetails(Weather weather){
+        if(weather==null){
+            Toast.makeText(this, "An error occured", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        textView.setText(weather.getCity());
+        dataBinding.weatherDesc.setText(weather.getDesc());
+        dataBinding.weatherTemp.setText(weather.getTemp());
+        Glide.with(getApplicationContext())
+                .load(weather.getImg_code())
+                .into(dataBinding.weatherImg);
+        dataBinding.weatherImg.setVisibility(View.VISIBLE);
+        setCacheData(weather);
+
+    }
+    private void getCurrentWeatherList() {
+        for (String cityname : citynames) {
+            String url = "https://api.openweathermap.org/data/2.5/weather?q=" + cityname + "&appid=2cab7d4d158694baeef5060316992318";
+            JsonObjectRequest jsonObjectRequest=new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+                    cityWeather.add(getDetails(response));
+                    if(cityWeather.size()==6){
+                        setAdaptar();
+                    }
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Log.v("Error", error.getLocalizedMessage());
+                }
+            });
+            MySingleton.getInstance(this).addToRequestQueue(jsonObjectRequest);
+        }
+       // Log.v("response",cityWeather.size()+"");
+
+    }
+    void setAdaptar(){
+        WeatherAdaptar weatherAdaptar=new WeatherAdaptar(cityWeather,this);
+        recyclerView.setAdapter(weatherAdaptar);
+    }
+
+    private boolean checkConnectivity() {
+        boolean connected = false;
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        //we are connected to a network
+        connected = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState() == NetworkInfo.State.CONNECTED ||
+                connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).getState() == NetworkInfo.State.CONNECTED;
+        return connected;
+    }
+
+    private void setCacheData(Weather weather) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("city", weather.city);
+        editor.putString("icon", weather.getImg_code());
+        editor.putString("temp", weather.getTemp());
+        editor.putLong("time",weather.getTime());
+        editor.putString("desc", weather.getDesc());
+        editor.apply();
+
+    }
+
+    private void getDefaultData() {
+        String value = sharedPreferences.getString("city", "Please Connect to internet");
+        String desc=sharedPreferences.getString("desc","null");
+        String temp=sharedPreferences.getString("temp","noTemp");
+        String time=TimeUtils.getTime(sharedPreferences.getLong("time",System.currentTimeMillis()));
+        textView.setText(value);
+        dataBinding.weatherTemp.setText(temp);
+        dataBinding.weatherDesc.setText(desc);
+        dataBinding.weatherTime.setText(time);
+        dataBinding.weatherImg.setImageResource(R.drawable.no_img);
+        dataBinding.weatherImg.setVisibility(View.VISIBLE);
+
+
+
     }
 
 
@@ -202,107 +338,9 @@ public class MainActivity extends AppCompatActivity {
         isEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
         return isEnabled;
     }
-
-    private void loadData(String Latitude, String Longitude) {
-        Cache cache = new DiskBasedCache(getCacheDir(), 1024 * 1024);
-        Network network = new BasicNetwork(new HurlStack());
-//      RequestQueue requestQueue;
-//      requestQueue = Volley.newRequestQueue(this);
-//      requestQueue.start();
-
-        String API_KEY = "2cab7d4d158694baeef5060316992318";
-        String url = "https://api.openweathermap.org/data/2.5/weather?lat=" + Latitude + "&lon=" + Longitude + "&appid=" + API_KEY;
-        JsonObjectRequest
-                jsonObjectRequest
-                = new JsonObjectRequest(Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
-            @Override
-            public void onResponse(JSONObject response) {
-
-                getDetails(response);
-
-
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                Log.v("Error", error.getLocalizedMessage());
-            }
-        });
-        MySingleton.getInstance(this).addToRequestQueue(jsonObjectRequest);
-    }
-
-    private void getDetails(JSONObject response) {
-        try {
-            String cityName = response.getString("name");
-            JSONArray array = response.getJSONArray("weather");
-            JSONObject obj = array.getJSONObject(0);
-            String imgCode = obj.getString("icon");
-            String description = obj.getString("description");
-            double temp1 = response.getJSONObject("main").getDouble("temp")-273;
-            DecimalFormat precision = new DecimalFormat("0.00");
-            String temp=precision.format(temp1)+"°C";
-
-            textView.setText(cityName);
-            dataBinding.weatherDesc.setText(description);
-            dataBinding.weatherTemp.setText(temp);
-            String icon_url = "https://openweathermap.org/img/wn/" + imgCode + "@4x.png";
-            Glide.with(getApplicationContext())
-                    .load(icon_url)
-                    .into(dataBinding.weatherImg);
-            Weather weather = new Weather(cityName, icon_url, temp, description,System.currentTimeMillis());
-            dataBinding.weatherImg.setVisibility(View.VISIBLE);
-            setCacheData(weather);
-
-        } catch (JSONException e) {
-            Log.v("Tagg", e.getLocalizedMessage());
-        }
-    }
-
-    private boolean checkConnectivity() {
-        boolean connected = false;
-        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        //we are connected to a network
-        connected = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState() == NetworkInfo.State.CONNECTED ||
-                connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).getState() == NetworkInfo.State.CONNECTED;
-        return connected;
-    }
-
-    private void setCacheData(Weather weather) {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putString("city", weather.city);
-        editor.putString("icon", weather.getImg_code());
-        editor.putString("temp", weather.getTemp());
-        editor.putLong("time",weather.getTime());
-        editor.putString("desc", weather.getDesc());
-        editor.apply();
-
-    }
-
-    private void getDefaultData() {
-        String value = sharedPreferences.getString("city", "Please Connect to internet");
-        String desc=sharedPreferences.getString("desc","null");
-        String temp=sharedPreferences.getString("temp","noTemp");
-        String time=TimeUtils.getTime(sharedPreferences.getLong("time",System.currentTimeMillis()));
-        textView.setText(value);
-        dataBinding.weatherTemp.setText(temp);
-        dataBinding.weatherDesc.setText(desc);
-        dataBinding.weatherTime.setText(time);
-        dataBinding.weatherImg.setImageResource(R.drawable.no_img);
-        dataBinding.weatherImg.setVisibility(View.VISIBLE);
-
-
-
-    }
-
 }
 //todo bonus task
 /*• Below card view show list of following cities with their current weather conditions.
 
-1. New York
-2. Singapore
-3. Mumbai
-4. Delhi
-5. Sydney
-6. Melbourne
 
 */

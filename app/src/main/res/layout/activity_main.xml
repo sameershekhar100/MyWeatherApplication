@@ -24,15 +24,15 @@
             android:id="@+id/weather_img"
             android:layout_width="80dp"
             android:layout_height="80dp"
+            android:background="@color/white"
             android:contentDescription="No Image"
+            android:visibility="invisible"
             app:layout_constraintBottom_toTopOf="@id/city_title"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.498"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.666"
-            android:background="@color/white"
-            android:visibility="invisible"/>
+            app:layout_constraintVertical_bias="0.666" />
 
         <TextView
             android:id="@+id/city_title"
@@ -87,8 +87,20 @@
             app:layout_constraintHorizontal_bias="0.498"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.553"
             tools:text="TextView" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:orientation="horizontal"
+            android:id="@+id/recyclerView"
+            tools:listitem="@layout/item_view"
+            android:scrollbars="horizontal"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintTop_toBottomOf="@id/weatherTime" />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>
